@@ -107,7 +107,7 @@ const LANG = {
     stats_target_vel: "Target vel",
     stats_missile_mass: "Missile mass",
     stats_mach: "Mach",
-    stats_cmd_accel: "Cmd accel",
+    stats_cmd_accel: "Overload",
     stats_stage_time: "Stage time",
     footer_author: "Author",
   },
@@ -1092,4 +1092,5 @@ window.addEventListener("keyup", onKeyUp);
 // Start idle render
 sim.updateHud(0, 0, 0);
 loop();
+
 
