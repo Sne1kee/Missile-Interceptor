@@ -264,3 +264,49 @@ canvas {
   .field input { width: 100px; }
 }
 
+/* Phone layout tweaks */
+@media (max-width: 768px) {
+  .app {
+    padding: 8px;
+    gap: 8px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 6px;
+  }
+
+  .canvas-wrap {
+    padding: 8px;
+  }
+
+  .hud {
+    font-size: 12px;
+    min-width: 0;
+    max-width: 70%;
+  }
+
+  .stats {
+    position: absolute;
+    left: 10px;
+    right: 10px;
+    bottom: 10px;
+    margin-top: 0;
+    max-height: 40vh;
+    overflow-y: auto;
+    font-size: 11px;
+    grid-template-columns: 1fr;
+    backdrop-filter: blur(6px);
+  }
+
+  .panel {
+    margin-top: 4px;
+  }
+
+  .footer {
+    justify-content: center;
+    font-size: 11px;
+  }
+}
+

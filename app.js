@@ -966,6 +966,9 @@ document.querySelectorAll(".panel-toggle").forEach((btn) => {
 let panning = false;
 let lastPanX = 0;
 let lastPanY = 0;
+let touchMode = null; // "pan" | "pinch" | null
+let pinchStartDist = 0;
+let pinchStartScale = 1;
 
 function enterFreeCamera() {
   if (viewState.mode === "free") return;
@@ -995,6 +998,57 @@ canvas.addEventListener("wheel", (e) => {
   e.preventDefault();
   const factor = 1 - e.deltaY * 0.002;
   viewState.scale = clamp(viewState.scale * factor, viewState.minScale, viewState.maxScale);
+}, { passive: false });
+
+// Touch support for pan and pinch-zoom on mobile.
+canvas.addEventListener("touchstart", (e) => {
+  if (e.touches.length === 1) {
+    enterFreeCamera();
+    touchMode = "pan";
+    const t = e.touches[0];
+    const rect = canvas.getBoundingClientRect();
+    lastPanX = t.clientX - rect.left;
+    lastPanY = t.clientY - rect.top;
+  } else if (e.touches.length === 2) {
+    enterFreeCamera();
+    touchMode = "pinch";
+    const [t1, t2] = e.touches;
+    const dx = t2.clientX - t1.clientX;
+    const dy = t2.clientY - t1.clientY;
+    pinchStartDist = Math.hypot(dx, dy) || 1;
+    pinchStartScale = viewState.scale;
+  }
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener("touchmove", (e) => {
+  if (!touchMode) return;
+  const rect = canvas.getBoundingClientRect();
+  if (touchMode === "pan" && e.touches.length === 1) {
+    const t = e.touches[0];
+    const x = t.clientX - rect.left;
+    const y = t.clientY - rect.top;
+    const dx = x - lastPanX;
+    const dy = y - lastPanY;
+    lastPanX = x;
+    lastPanY = y;
+    viewState.center.x -= dx / viewState.scale;
+    viewState.center.y += dy / viewState.scale;
+  } else if (touchMode === "pinch" && e.touches.length === 2) {
+    const [t1, t2] = e.touches;
+    const dx = t2.clientX - t1.clientX;
+    const dy = t2.clientY - t1.clientY;
+    const dist = Math.hypot(dx, dy) || 1;
+    const factor = dist / pinchStartDist;
+    viewState.scale = clamp(pinchStartScale * factor, viewState.minScale, viewState.maxScale);
+  }
+  e.preventDefault();
+}, { passive: false });
+
+canvas.addEventListener("touchend", () => {
+  if (touchMode === "pan" && event.touches && event.touches.length > 0) return;
+  touchMode = null;
+  panning = false;
 }, { passive: false });
 
 function updateManeuverUI() {
