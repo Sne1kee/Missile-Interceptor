@@ -10,6 +10,11 @@ const ctx = canvas.getContext("2d");
 const hud = document.getElementById("hud");
 const statsEl = document.getElementById("stats");
 
+const IS_MOBILE = typeof window !== "undefined"
+  ? window.matchMedia("(max-width: 768px)").matches
+  : false;
+const VIS_SCALE = IS_MOBILE ? 1.6 : 1;
+
 const ui = {
   launchBtn: document.getElementById("launchBtn"),
   resetBtn: document.getElementById("resetBtn"),
@@ -546,8 +551,6 @@ class Simulation {
       const navNMin = 0.2; // gentle long-range value
 
       if (tgo <= 5) {
-        // Map tgo in [0, 2] -> t in [1, 0] (0 at 2s, 1 at impact),
-        // then smooth-step for a soft transition.
         const tRaw = clamp((5 - tgo) / 5, 0, 1);
         const tSmooth = tRaw * tRaw * (3 - 2 * tRaw);
         navNUsed = navNMin + (navNMax - navNMin) * tSmooth;
@@ -740,7 +743,7 @@ function drawTrail(trail, color, view) {
     else ctx.lineTo(p.x, p.y);
   }
   ctx.strokeStyle = color;
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * VIS_SCALE;
   ctx.stroke();
 }
 
@@ -754,22 +757,22 @@ function drawMissile(m, view) {
   ctx.rotate(-angle);
   ctx.fillStyle = "#9dd1ff";
   ctx.strokeStyle = "#c6e3ff";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * VIS_SCALE;
   ctx.beginPath();
-  ctx.moveTo(14, 0);
-  ctx.lineTo(-12, 6);
-  ctx.lineTo(-16, 0);
-  ctx.lineTo(-12, -6);
+  ctx.moveTo(14 * VIS_SCALE, 0);
+  ctx.lineTo(-12 * VIS_SCALE, 6 * VIS_SCALE);
+  ctx.lineTo(-16 * VIS_SCALE, 0);
+  ctx.lineTo(-12 * VIS_SCALE, -6 * VIS_SCALE);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  const gradient = ctx.createRadialGradient(-16, 0, 0, -16, 0, 14);
+  const gradient = ctx.createRadialGradient(-16 * VIS_SCALE, 0, 0, -16 * VIS_SCALE, 0, 14 * VIS_SCALE);
   gradient.addColorStop(0, "rgba(255,180,80,0.9)");
   gradient.addColorStop(1, "rgba(255,180,80,0)");
   ctx.fillStyle = gradient;
   ctx.beginPath();
-  ctx.ellipse(-20, 0, 16, 8, 0, 0, Math.PI * 2);
+  ctx.ellipse(-20 * VIS_SCALE, 0, 16 * VIS_SCALE, 8 * VIS_SCALE, 0, 0, Math.PI * 2);
   ctx.fill();
   ctx.restore();
 }
@@ -784,11 +787,11 @@ function drawTarget(t, view) {
   ctx.rotate(-angle);
   ctx.fillStyle = "#7bd88f";
   ctx.strokeStyle = "#c8f9d1";
-  ctx.lineWidth = 2;
+  ctx.lineWidth = 2 * VIS_SCALE;
   ctx.beginPath();
-  ctx.moveTo(12, 0);
-  ctx.lineTo(-12, 5);
-  ctx.lineTo(-12, -5);
+  ctx.moveTo(12 * VIS_SCALE, 0);
+  ctx.lineTo(-12 * VIS_SCALE, 5 * VIS_SCALE);
+  ctx.lineTo(-12 * VIS_SCALE, -5 * VIS_SCALE);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -809,8 +812,8 @@ function drawExplosion(p, view) {
 
 function drawScaleBar(view) {
   const paddingX = 40;
-  const paddingY = 50;
-  const targetBarPx = 200;
+  const paddingY = 50 * VIS_SCALE;
+  const targetBarPx = 200 * VIS_SCALE;
   const niceMeters = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000];
   let best = niceMeters[0];
   let bestDiff = Infinity;
@@ -825,11 +828,11 @@ function drawScaleBar(view) {
   const barPx = best * view.scale;
   const x = canvas.width - paddingX - barPx;
   const y = canvas.height - paddingY;
-  const tickH = 12;
+  const tickH = 12 * VIS_SCALE;
 
   ctx.save();
   ctx.strokeStyle = "rgba(255, 255, 255, 0.5)";
-  ctx.lineWidth = 4;
+  ctx.lineWidth = 4 * VIS_SCALE;
   ctx.lineCap = "square";
   ctx.beginPath();
   ctx.moveTo(x, y);
@@ -841,7 +844,7 @@ function drawScaleBar(view) {
   ctx.stroke();
 
   const label = best >= 1000 ? (best / 1000) + " km" : best + " m";
-  ctx.font = "28px system-ui, sans-serif";
+  ctx.font = `${28 * VIS_SCALE}px system-ui, sans-serif`;
   ctx.fillStyle = "rgba(255, 255, 255, 0.9)";
   ctx.textAlign = "center";
   ctx.textBaseline = "top";
@@ -1045,9 +1048,8 @@ canvas.addEventListener("touchmove", (e) => {
   e.preventDefault();
 }, { passive: false });
 
-canvas.addEventListener("touchend", () => {
-  // If there are still active touches, keep the current gesture.
-  if (touchMode && event.touches && event.touches.length > 0) return;
+canvas.addEventListener("touchend", (e) => {
+  if (e.touches && e.touches.length > 0) return;
   touchMode = null;
   panning = false;
 }, { passive: false });
@@ -1070,17 +1072,6 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
   });
 });
 applyTranslations();
-
-// Stats toggle for small screens: hide stats by default on mobile and let user expand.
-const statsElDom = document.getElementById("stats");
-const statsToggle = document.getElementById("statsToggle");
-if (statsElDom && statsToggle) {
-  const isMobile = window.matchMedia("(max-width: 768px)").matches;
-  if (isMobile) statsElDom.classList.add("collapsed");
-  statsToggle.addEventListener("click", () => {
-    statsElDom.classList.toggle("collapsed");
-  });
-}
 
 // Arrow keys for player-controlled target (prevent scroll)
 function onKeyDown(e) {
