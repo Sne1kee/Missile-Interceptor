@@ -130,6 +130,23 @@ canvas {
   gap: 6px 12px;
 }
 
+.stats.collapsed {
+  display: none;
+}
+
+.stats-toggle {
+  position: absolute;
+  right: 12px;
+  top: 12px;
+  z-index: 5;
+  font-size: 11px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(8, 12, 20, 0.85);
+  color: var(--muted);
+}
+
 .panel {
   background: var(--panel);
   border: 1px solid var(--border);
@@ -293,7 +310,7 @@ canvas {
     right: 10px;
     bottom: 10px;
     margin-top: 0;
-    max-height: 40vh;
+    max-height: 32vh;
     overflow-y: auto;
     font-size: 11px;
     grid-template-columns: 1fr;
@@ -302,6 +319,8 @@ canvas {
 
   .panel {
     margin-top: 4px;
+    max-height: 52vh;
+    overflow-y: auto;
   }
 
   .footer {

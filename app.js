@@ -1046,7 +1046,8 @@ canvas.addEventListener("touchmove", (e) => {
 }, { passive: false });
 
 canvas.addEventListener("touchend", () => {
-  if (touchMode === "pan" && event.touches && event.touches.length > 0) return;
+  // If there are still active touches, keep the current gesture.
+  if (touchMode && event.touches && event.touches.length > 0) return;
   touchMode = null;
   panning = false;
 }, { passive: false });
@@ -1069,6 +1070,17 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
   });
 });
 applyTranslations();
+
+// Stats toggle for small screens: hide stats by default on mobile and let user expand.
+const statsElDom = document.getElementById("stats");
+const statsToggle = document.getElementById("statsToggle");
+if (statsElDom && statsToggle) {
+  const isMobile = window.matchMedia("(max-width: 768px)").matches;
+  if (isMobile) statsElDom.classList.add("collapsed");
+  statsToggle.addEventListener("click", () => {
+    statsElDom.classList.toggle("collapsed");
+  });
+}
 
 // Arrow keys for player-controlled target (prevent scroll)
 function onKeyDown(e) {
