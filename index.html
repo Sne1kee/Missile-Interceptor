@@ -1,0 +1,127 @@
+<!doctype html>
+<!-- 2D Missile Intercept Simulator - MIT License (c) 2026 Sne1ke -->
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>2D Missile Interceptor Simulator</title>
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="topbar">
+      <div>
+        <h1>Missile Interceptor</h1>
+        <p class="subtitle">Missile kinematics sandbox with smart guidance</p>
+      </div>
+      <div class="actions">
+        <button type="button" id="langEnBtn" class="lang-btn active" data-lang="en" title="English" aria-label="English">🇬🇧</button>
+        <button type="button" id="langUkBtn" class="lang-btn" data-lang="uk" title="Українська" aria-label="Українська">🇺🇦</button>
+        <button id="launchBtn" class="primary" data-i18n="btn_launch">Launch</button>
+        <button id="resetBtn" class="ghost" data-i18n="btn_reset">Reset</button>
+        <button id="centerCamBtn" class="ghost" data-i18n="btn_center_camera">Center camera</button>
+      </div>
+    </header>
+
+    <main class="layout">
+      <section class="canvas-wrap">
+        <!-- High internal resolution for crisp graphics; CSS scales to fit -->
+        <canvas id="scene" width="1600" height="960"></canvas>
+        <div class="hud" id="hud"></div>
+        <div class="stats" id="stats"></div>
+      </section>
+
+      <aside class="panel">
+        <button class="panel-toggle" data-panel-target="targetPanel" data-i18n="panel_target">Target ▾</button>
+        <div id="targetPanel" class="panel-section">
+          <label class="field">
+            <span class="tooltip" data-i18n="label_maneuver" data-i18n-tooltip="tooltip_maneuver" data-tooltip="">Maneuver</span>
+            <div class="maneuver-row">
+              <input id="targetManeuver" type="range" min="0" max="2" step="1" value="0">
+              <span id="targetManeuverLabel">Straight</span>
+            </div>
+          </label>
+          <p class="hint" id="targetManeuverHint">Target flies straight at constant speed.</p>
+          <label class="field">
+            <span class="tooltip" data-i18n="label_speed" data-i18n-tooltip="tooltip_speed" data-tooltip="">Speed (m/s)</span>
+            <input id="targetSpeed" type="number" value="-250" step="10">
+          </label>
+          <label class="field">
+            <span class="tooltip" data-i18n="label_range" data-i18n-tooltip="tooltip_range" data-tooltip="">Range (m)</span>
+            <input id="targetRange" type="number" value="30000" step="100">
+          </label>
+          <label class="field">
+            <span class="tooltip" data-i18n="label_altitude" data-i18n-tooltip="tooltip_altitude" data-tooltip="">Altitude (m)</span>
+            <input id="targetAlt" type="number" value="10000" step="100">
+          </label>
+        </div>
+
+        <button class="panel-toggle" data-panel-target="missilePanel" data-i18n="panel_missile">Missile ▾</button>
+        <div id="missilePanel" class="panel-section">
+          <div class="grid">
+            <label class="field">
+              <span class="tooltip" data-i18n="label_g_limit" data-i18n-tooltip="tooltip_g_limit" data-tooltip="">G limit</span>
+              <input id="missileG" type="number" value="35" step="1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_mass" data-i18n-tooltip="tooltip_mass" data-tooltip="">Mass (kg)</span>
+              <input id="missileMass" type="number" value="280" step="1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_primary_thrust" data-i18n-tooltip="tooltip_primary_thrust" data-tooltip="">Primary thrust (N)</span>
+              <input id="primaryThrust" type="number" value="25000" step="500">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_primary_time" data-i18n-tooltip="tooltip_primary_time" data-tooltip="">Primary time (s)</span>
+              <input id="primaryTime" type="number" value="1.9" step="0.1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_secondary_thrust" data-i18n-tooltip="tooltip_secondary_thrust" data-tooltip="">Secondary thrust (N)</span>
+              <input id="secondaryThrust" type="number" value="18000" step="200">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_secondary_time" data-i18n-tooltip="tooltip_secondary_time" data-tooltip="">Secondary time (s)</span>
+              <input id="secondaryTime" type="number" value="12" step="0.1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_max_speed" data-i18n-tooltip="tooltip_max_speed" data-tooltip="">Max speed (Mach)</span>
+              <input id="maxMach" type="number" value="4.0" step="0.1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_fuze" data-i18n-tooltip="tooltip_fuze" data-tooltip="">Proximity fuze (m)</span>
+              <input id="fuzeRange" type="number" value="12" step="1">
+            </label>
+          </div>
+        </div>
+
+        <button class="panel-toggle" data-panel-target="guidancePanel" data-i18n="panel_guidance">Guidance ▾</button>
+        <div id="guidancePanel" class="panel-section">
+          <div class="grid">
+            <label class="field">
+              <span class="tooltip" data-i18n="label_guidance_mode" data-i18n-tooltip="tooltip_guidance_mode" data-tooltip="">Guidance mode</span>
+              <select id="guidanceMode">
+                <option value="constant" selected>Constant N</option>
+                <option value="smart">Smart (energy-saving)</option>
+              </select>
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_nav_n" data-i18n-tooltip="tooltip_nav_n" data-tooltip="">Nav constant N</span>
+              <input id="navConstant" type="number" value="4.0" step="0.1">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_loft_bias" data-i18n-tooltip="tooltip_loft_bias" data-tooltip="">Loft bias (deg)</span>
+              <input id="loftBias" type="number" value="20" step="1">
+            </label>
+          </div>
+        </div>
+      </aside>
+    </main>
+    <footer class="footer">
+      <span><span data-i18n="footer_author">Author</span>: Sne1ke</span>
+    </footer>
+  </div>
+
+  <script src="app.js"></script>
+</body>
+</html>
+
