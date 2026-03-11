@@ -29,11 +29,39 @@
         <canvas id="scene" width="1600" height="960"></canvas>
         <div class="hud" id="hud"></div>
         <div class="stats" id="stats"></div>
+        <div id="mobileControls" class="mobile-controls hidden">
+          <button type="button" id="mobileLeft" class="mobile-arrow">⟵</button>
+          <button type="button" id="mobileUp" class="mobile-arrow">⟰</button>
+          <button type="button" id="mobileDown" class="mobile-arrow">⟱</button>
+          <button type="button" id="mobileRight" class="mobile-arrow">⟶</button>
+        </div>
       </section>
 
       <aside class="panel">
+        <div class="sim-speed-wrap">
+          <span class="tooltip" data-i18n="label_sim_speed" data-i18n-tooltip="tooltip_sim_speed" data-tooltip="">Simulation speed</span>
+          <div class="target-type-switch sim-speed-switch" role="group" aria-label="Simulation speed">
+            <input type="radio" name="simSpeedOpt" id="simSpeed05" value="0.5" class="target-type-radio">
+            <label for="simSpeed05" class="target-type-segment" data-speed="0.5">0.5×</label>
+            <input type="radio" name="simSpeedOpt" id="simSpeed1" value="1" class="target-type-radio" checked>
+            <label for="simSpeed1" class="target-type-segment" data-speed="1">1×</label>
+            <input type="radio" name="simSpeedOpt" id="simSpeed2" value="2" class="target-type-radio">
+            <label for="simSpeed2" class="target-type-segment" data-speed="2">2×</label>
+            <input type="radio" name="simSpeedOpt" id="simSpeed5" value="5" class="target-type-radio">
+            <label for="simSpeed5" class="target-type-segment" data-speed="5">5×</label>
+          </div>
+        </div>
         <button class="panel-toggle" data-panel-target="targetPanel" data-i18n="panel_target">Target ▾</button>
         <div id="targetPanel" class="panel-section">
+          <label class="field field-label-above">
+            <span class="tooltip" data-i18n="label_target_type" data-i18n-tooltip="tooltip_target_type" data-tooltip="">Target type</span>
+            <div class="target-type-switch" role="group" aria-label="Target type">
+              <input type="radio" name="targetType" id="targetTypePlane" value="plane" checked class="target-type-radio">
+              <input type="radio" name="targetType" id="targetTypeBallistic" value="ballistic" class="target-type-radio">
+              <label for="targetTypePlane" class="target-type-segment" data-i18n="target_plane">Plane</label>
+              <label for="targetTypeBallistic" class="target-type-segment" data-i18n="target_ballistic">Ballistic</label>
+            </div>
+          </label>
           <label class="field">
             <span class="tooltip" data-i18n="label_maneuver" data-i18n-tooltip="tooltip_maneuver" data-tooltip="">Maneuver</span>
             <div class="maneuver-row">
@@ -42,18 +70,35 @@
             </div>
           </label>
           <p class="hint" id="targetManeuverHint">Target flies straight at constant speed.</p>
-          <label class="field">
-            <span class="tooltip" data-i18n="label_speed" data-i18n-tooltip="tooltip_speed" data-tooltip="">Speed (m/s)</span>
-            <input id="targetSpeed" type="number" value="-250" step="10">
-          </label>
-          <label class="field">
-            <span class="tooltip" data-i18n="label_range" data-i18n-tooltip="tooltip_range" data-tooltip="">Range (m)</span>
-            <input id="targetRange" type="number" value="30000" step="100">
-          </label>
-          <label class="field">
-            <span class="tooltip" data-i18n="label_altitude" data-i18n-tooltip="tooltip_altitude" data-tooltip="">Altitude (m)</span>
-            <input id="targetAlt" type="number" value="10000" step="100">
-          </label>
+          <div id="targetPlaneFields">
+            <label class="field" id="targetField1">
+              <span class="tooltip" data-i18n="label_speed" data-i18n-tooltip="tooltip_speed" data-tooltip="">Speed (m/s)</span>
+              <input id="targetSpeed" type="number" value="-250" step="10">
+            </label>
+            <label class="field" id="targetField2">
+              <span class="tooltip" data-i18n="label_range" data-i18n-tooltip="tooltip_range" data-tooltip="">Range (m)</span>
+              <input id="targetRange" type="number" value="30000" step="100">
+            </label>
+            <label class="field" id="targetField3">
+              <span class="tooltip" data-i18n="label_altitude" data-i18n-tooltip="tooltip_altitude" data-tooltip="">Altitude (m)</span>
+              <input id="targetAlt" type="number" value="10000" step="100">
+            </label>
+          </div>
+          <div id="targetBallisticFields" class="hidden">
+            <label class="field">
+              <span class="tooltip" data-i18n="label_apogee" data-i18n-tooltip="tooltip_apogee" data-tooltip="">Ballistic missile apogee (m)</span>
+              <input id="targetApogee" type="number" value="25000" step="500" min="20000">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_attack_coords" data-i18n-tooltip="tooltip_attack_coords" data-tooltip="">Coordinates of attack (m)</span>
+              <input id="targetAttackX" type="number" value="5000" step="100">
+            </label>
+            <label class="field">
+              <span class="tooltip" data-i18n="label_starting_deviation" data-i18n-tooltip="tooltip_starting_deviation" data-tooltip="">Starting deviation (m)</span>
+              <input id="targetDeviation" type="number" value="10000" step="500">
+            </label>
+          </div>
+          <p id="targetError" class="error" aria-live="polite"></p>
         </div>
 
         <button class="panel-toggle" data-panel-target="missilePanel" data-i18n="panel_missile">Missile ▾</button>
@@ -110,7 +155,7 @@
             </label>
             <label class="field">
               <span class="tooltip" data-i18n="label_loft_bias" data-i18n-tooltip="tooltip_loft_bias" data-tooltip="">Loft bias (deg)</span>
-              <input id="loftBias" type="number" value="20" step="1">
+              <input id="loftBias" type="number" value="10" step="1">
             </label>
           </div>
         </div>

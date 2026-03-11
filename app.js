@@ -11,7 +11,9 @@ const hud = document.getElementById("hud");
 const statsEl = document.getElementById("stats");
 
 const IS_MOBILE = typeof window !== "undefined"
-  ? window.matchMedia("(max-width: 768px)").matches
+  ? (("ontouchstart" in window) ||
+     (navigator.maxTouchPoints && navigator.maxTouchPoints > 0) ||
+     window.matchMedia("(max-width: 900px)").matches)
   : false;
 const VIS_SCALE = IS_MOBILE ? 1.6 : 1;
 
@@ -27,6 +29,14 @@ const ui = {
   targetSpeed: document.getElementById("targetSpeed"),
   targetRange: document.getElementById("targetRange"),
   targetAlt: document.getElementById("targetAlt"),
+  targetTypePlane: document.getElementById("targetTypePlane"),
+  targetTypeBallistic: document.getElementById("targetTypeBallistic"),
+  targetPlaneFields: document.getElementById("targetPlaneFields"),
+  targetBallisticFields: document.getElementById("targetBallisticFields"),
+  targetApogee: document.getElementById("targetApogee"),
+  targetAttackX: document.getElementById("targetAttackX"),
+  targetDeviation: document.getElementById("targetDeviation"),
+  targetError: document.getElementById("targetError"),
   missileG: document.getElementById("missileG"),
   missileMass: document.getElementById("missileMass"),
   primaryThrust: document.getElementById("primaryThrust"),
@@ -38,6 +48,12 @@ const ui = {
   guidanceMode: document.getElementById("guidanceMode"),
   navConstant: document.getElementById("navConstant"),
   loftBias: document.getElementById("loftBias"),
+  simSpeed: document.getElementById("simSpeed"),
+  mobileControls: document.getElementById("mobileControls"),
+  mobileLeft: document.getElementById("mobileLeft"),
+  mobileRight: document.getElementById("mobileRight"),
+  mobileUp: document.getElementById("mobileUp"),
+  mobileDown: document.getElementById("mobileDown"),
 };
 
 // Translations: English (en) and Ukrainian (uk)
@@ -50,10 +66,22 @@ const LANG = {
     panel_target: "Target ▾",
     panel_missile: "Missile ▾",
     panel_guidance: "Guidance ▾",
+    label_target_type: "Target type",
+    target_plane: "Plane",
+    target_ballistic: "Ballistic",
+    tooltip_target_type: "Plane: flying target. Ballistic: descending missile from apogee.",
     label_maneuver: "Maneuver",
     label_speed: "Speed (m/s)",
     label_range: "Range (m)",
     label_altitude: "Altitude (m)",
+    label_apogee: "Ballistic missile apogee (m)",
+    label_attack_coords: "Coordinates of attack (m)",
+    label_starting_deviation: "Starting deviation (m)",
+    tooltip_apogee: "Altitude at which the ballistic missile starts falling (minimum 20 km).",
+    tooltip_attack_coords: "Ground position to attack, relative to launcher (e.g. 100 = 100 m right at ground level).",
+    tooltip_starting_deviation: "Horizontal position relative to launcher (min 25% of apogee).",
+    error_apogee_min: "Apogee must be at least 20,000 m (20 km).",
+    error_deviation_min: "Starting deviation must be at least 25% of apogee.",
     label_g_limit: "G limit",
     label_mass: "Mass (kg)",
     label_primary_thrust: "Primary thrust (N)",
@@ -65,6 +93,8 @@ const LANG = {
     label_guidance_mode: "Guidance mode",
     label_nav_n: "Nav constant N",
     label_loft_bias: "Loft bias (deg)",
+    label_sim_speed: "Simulation speed",
+    tooltip_sim_speed: "Speed multiplier for the simulation (0.5× to 5×).",
     tooltip_maneuver: "How the target flies: straight, snake-like weave, or player-controlled with arrow keys.",
     tooltip_speed: "Initial horizontal speed of the target in meters per second.",
     tooltip_range: "Initial horizontal distance from the launcher to the target (positive = right, negative = left).",
@@ -78,7 +108,7 @@ const LANG = {
     tooltip_max_speed: "Hard cap on missile speed expressed in Mach number.",
     tooltip_fuze: "Detonation radius: if the missile comes within this distance, the proximity fuze triggers.",
     tooltip_guidance_mode: "Choose classic constant-N proportional navigation or energy-saving smart guidance (dynamically changes N midflight to save energy).",
-    tooltip_nav_n: "Navigation constant for proportional navigation; in Smart mode this is the maximum N used near intercept.",
+    tooltip_nav_n: "Navigation constant in missile guidance that dictates how aggressively a missile responds to the rotation of the line-of-sight (LOS) to a target. \n In Smart mode this is the maximum N used near intercept.",
     tooltip_loft_bias: "Positive values bias the missile to arc above the line of sight when the target is much higher.",
     hint_straight: "Target flies straight at constant speed.",
     hint_snake: "Target weaves up and down in a snake pattern.",
@@ -91,11 +121,12 @@ const LANG = {
     result_intercept_fuze: "Intercept (proximity fuze)",
     result_direct_hit: "Direct hit",
     result_missed: "Missed",
+    result_target_impacted: "Target impacted",
     hud_result: "Result",
     hud_range: "Range",
     hud_closure: "Closure",
     hud_missile_speed: "Missile speed",
-    hud_cmd_accel: "Cmd accel",
+    hud_cmd_accel: "Overload",
     hud_guidance: "Guidance",
     hud_eta: "ETA",
     hud_pan_zoom: "Drag to pan, scroll to zoom",
@@ -105,7 +136,9 @@ const LANG = {
     stats_target_pos: "Target pos",
     stats_missile_vel: "Missile vel",
     stats_target_vel: "Target vel",
+    stats_target_speed: "Target speed",
     stats_missile_mass: "Missile mass",
+    stats_target_mass: "Target mass",
     stats_mach: "Mach",
     stats_cmd_accel: "Overload",
     stats_stage_time: "Stage time",
@@ -119,10 +152,22 @@ const LANG = {
     panel_target: "Ціль ▾",
     panel_missile: "Ракета ▾",
     panel_guidance: "Наведення ▾",
+    label_target_type: "Тип цілі",
+    target_plane: "Літак",
+    target_ballistic: "Балістична",
+    tooltip_target_type: "Літак: літаюча ціль. Балістична: ракета, що падає з апогею.",
     label_maneuver: "Маневр",
     label_speed: "Швидкість (м/с)",
     label_range: "Дальність (м)",
     label_altitude: "Висота (м)",
+    label_apogee: "Апогей БР (м)",
+    label_attack_coords: "Координати удару (м)",
+    label_starting_deviation: "Початкове відхилення (м)",
+    tooltip_apogee: "Висота, з якої балістична ракета починає падіння (мін. 20 км).",
+    tooltip_attack_coords: "Наземна точка удару відносно пускової позиції (напр. 100 = 100 м праворуч на рівні землі).",
+    tooltip_starting_deviation: "Відстань в горизонті відносно пускової (мін. 25% від апогею).",
+    error_apogee_min: "Апогей має бути не менше 20 000 м (20 км).",
+    error_deviation_min: "Початкове відхилення має бути не менше 25% від апогею.",
     label_g_limit: "Обмеження g",
     label_mass: "Маса (кг)",
     label_primary_thrust: "Основна тяга (Н)",
@@ -134,21 +179,23 @@ const LANG = {
     label_guidance_mode: "Режим наведення",
     label_nav_n: "Стала наведення N",
     label_loft_bias: "Відхилення вгору (°)",
+    label_sim_speed: "Швидкість симуляції",
+    tooltip_sim_speed: "Множник швидкості симуляції (0.5× – 5×).",
     tooltip_maneuver: "Як летить ціль: прямо, змійкою або керування гравцем стрілками.",
     tooltip_speed: "Початкова горизонтальна швидкість цілі в м/с.",
     tooltip_range: "Початкова дальність від пускової до цілі (додатня = праворуч, відʼємна = ліворуч).",
     tooltip_altitude: "Початкова висота цілі над землею в метрах.",
-    tooltip_g_limit: "Максимальне поперечне прискорення (перевантаження) ракети (конструкція та стабілізатори).",
+    tooltip_g_limit: "Максимальне поперечне прискорення (перевантаження) ракети (конструкція та стабілізатори). Більше значення означає більшу здатність ракети витримувати перевантаження та більшу маневреність.",
     tooltip_mass: "Стартова маса ракети разом з паливом і БЧ.",
     tooltip_primary_thrust: "Тяга розгінного ступеня в ньютонах; більше — швидше розгін.",
     tooltip_primary_time: "Тривалість роботи розгінного ступеня в секундах.",
     tooltip_secondary_thrust: "Тяга маршового ступеня в ньютонах.",
     tooltip_secondary_time: "Тривалість роботи маршового ступеня в секундах.",
-    tooltip_max_speed: "Жорстке обмеження швидкості ракети в числах Махах.",
+    tooltip_max_speed: "Максимальна швидкість ракети в Махах.",
     tooltip_fuze: "Радіус підриву: при наближенні на цю відстань спрацьовує неконтактний підривач.",
     tooltip_guidance_mode: "Класичне постійне N або енерго-зберігаюче розумне наведення (N змінюється під час польоту).",
-    tooltip_nav_n: "Стала пропорційного наведення; \n У режимі «Розумне наведення» — це максимальне N біля перехоплення.",
-    tooltip_loft_bias: "Додатні значення відхиляють траєкторію вгору, коли ціль значно вище.",
+    tooltip_nav_n: "Навігаційна стала в системі наведення ракети, яка визначає, наскільки агресивно ракета реагує на обертання лінії видимості (LOS) до цілі. \n У режимі «Розумне наведення» — це максимальне N біля перехоплення.",
+    tooltip_loft_bias: "Додатні значення відхиляють траєкторію вгору, коли ціль значно вище, для завчасного набору висоти.",
     hint_straight: "Ціль летить прямо з постійною швидкістю.",
     hint_snake: "Ціль рухається вгору-вниз змійкою.",
     hint_player: "Стрілки: ← → швидкість в горизонті, ↑ ↓ вертикальна швидкість.",
@@ -160,6 +207,7 @@ const LANG = {
     result_intercept_fuze: "Перехоплення (неконтактний підривач)",
     result_direct_hit: "Пряме влучення",
     result_missed: "Промах",
+    result_target_impacted: "Ціль влучила",
     hud_result: "Результат",
     hud_range: "Відстань до цілі",
     hud_closure: " Швидкість зближення",
@@ -174,7 +222,9 @@ const LANG = {
     stats_target_pos: "Поз. цілі",
     stats_missile_vel: "Швид. ракети",
     stats_target_vel: "Швид. цілі",
+    stats_target_speed: "Швидкість цілі",
     stats_missile_mass: "Маса ракети",
+    stats_target_mass: "Маса цілі",
     stats_mach: "Швидкість в Махах",
     stats_cmd_accel: "Перевантаження",
     stats_stage_time: "Час польоту",
@@ -186,6 +236,21 @@ let currentLang = "en";
 
 function t(key) {
   return LANG[currentLang]?.[key] ?? LANG.en[key] ?? key;
+}
+
+function updateTargetTypeUI() {
+  const isBallistic = ui.targetTypeBallistic?.checked ?? false;
+  if (ui.targetPlaneFields) ui.targetPlaneFields.classList.toggle("hidden", isBallistic);
+  if (ui.targetBallisticFields) ui.targetBallisticFields.classList.toggle("hidden", !isBallistic);
+}
+
+function validateBallisticParams() {
+  const apogee = Number(ui.targetApogee?.value ?? 25000);
+  const deviation = Number(ui.targetDeviation?.value ?? 0);
+  if (apogee < 20000) return t("error_apogee_min");
+  const minDeviation = 0.25 * apogee;
+  if (Math.abs(deviation) < minDeviation) return t("error_deviation_min");
+  return null;
 }
 
 function applyTranslations() {
@@ -205,6 +270,7 @@ function applyTranslations() {
   if (opt0) opt0.textContent = t("option_constant");
   if (opt1) opt1.textContent = t("option_smart");
   updateManeuverUI();
+  updateTargetTypeUI();
   if (typeof sim !== "undefined") sim.refreshHudLanguage();
   document.querySelectorAll(".lang-btn").forEach((btn) => {
     btn.classList.toggle("active", btn.getAttribute("data-lang") === currentLang);
@@ -222,8 +288,8 @@ const MANEUVER_KEYS = ["maneuver_straight", "maneuver_snake", "maneuver_player"]
 const HINT_KEYS = ["hint_straight", "hint_snake", "hint_player"];
 
 const WORLD = {
-  width: 40000, // meters span horizontally
-  height: 24000, // meters span vertically
+  width: 4000000, // meters span horizontally
+  height: 2400000, // meters span vertically
   g: 9.81,
   seaLevelSpeedSound: 340, // m/s
   rho0: 1.225, // sea level air density kg/m^3
@@ -255,42 +321,42 @@ function rotate(v, angle) {
   return { x: v.x * c - v.y * s, y: v.x * s + v.y * c };
 }
 
+// Ballistic target aerodynamics: use same basic model as interceptor
+// (drag ∝ q * CdA) but with its own reference Cd·A and mass scaling so
+// heavier warheads fall faster and lighter ones slow down more.
 class Target {
   constructor(speed, altitude, range, maneuverMode = 0) {
-    this.pos = { x: range, y: altitude };
-    this.vel = { x: speed, y: 0 };
+    this.maneuverMode = maneuverMode;
     this.trail = [];
-    this.maneuverMode = maneuverMode; // 0 = straight, 1 = snake, 2 = player
-    this.baseSpeed = speed;
     this.snakePhase = 0;
-    this.snakeAmplitude = 150;  // m
-    this.snakePeriod = 10;      // s
-    this.playerAccel = 50;      // m/s² for keyboard control
+    this.snakePeriod = 10;
+    this.playerAccel = 50;
     this.minSpeed = 50;
     this.maxSpeed = 500;
     this.maxVertSpeed = 150;
+    this.snakeAmplitude = 150;
+    this.plasmaLevel = 0;
+
+    this.pos = { x: range, y: altitude };
+    this.vel = { x: speed, y: 0 };
+    this.baseSpeed = speed;
   }
 
   update(dt, keys = { left: false, right: false, up: false, down: false }) {
     if (this.maneuverMode === 0) {
-      // Straight: constant velocity
       this.pos.x += this.vel.x * dt;
       this.pos.y += this.vel.y * dt;
     } else if (this.maneuverMode === 1) {
-      // Snake: horizontal speed constant, vertical velocity sinusoidal.
-      // Make the weave amplitude depend on the *magnitude* of speed so faster
-      // targets jink more, regardless of direction (sign of speed).
       this.snakePhase += dt;
       const omega = (2 * Math.PI) / this.snakePeriod;
       const speedMag = Math.max(Math.abs(this.baseSpeed), this.minSpeed);
-      const speedFactor = clamp(speedMag / 250, 0.4, 2.0); // tuned so 250 m/s ≈ 1×
+      const speedFactor = clamp(speedMag / 250, 0.4, 2.0);
       const amp = this.snakeAmplitude * speedFactor;
       this.vel.y = amp * omega * Math.cos(omega * this.snakePhase);
       this.vel.x = this.baseSpeed;
       this.pos.x += this.vel.x * dt;
       this.pos.y += this.vel.y * dt;
     } else {
-      // Player: arrow keys change speed (left/right) and vertical (up/down)
       if (keys.left) this.vel.x -= this.playerAccel * dt;
       if (keys.right) this.vel.x += this.playerAccel * dt;
       this.vel.x = clamp(this.vel.x, -this.maxSpeed, this.maxSpeed);
@@ -300,9 +366,120 @@ class Target {
       this.pos.x += this.vel.x * dt;
       this.pos.y += this.vel.y * dt;
     }
+    // Smooth plasma intensity based on Mach
+    const speed = magnitude(this.vel);
+    const mach = speed / WORLD.seaLevelSpeedSound;
+    const raw = clamp((mach - PLASMA_MACH_MIN) / (PLASMA_MACH_MAX - PLASMA_MACH_MIN), 0, 1);
+    const fadeRate = 3; // 1/s
+    const k = clamp(dt * fadeRate, 0, 1);
+    this.plasmaLevel += (raw - this.plasmaLevel) * k;
     this.pos.y = Math.max(0, this.pos.y);
     this.trail.push({ x: this.pos.x, y: this.pos.y, t: performance.now() });
     if (this.trail.length > 400) this.trail.shift();
+  }
+}
+
+// Ballistic target: descent-only physics (gravity + drag). CdA and mass for warhead-like body.
+const BALLISTIC_CDA = 0.015;
+const BALLISTIC_MASS = 500;
+
+function simulateBallisticImpactX(deviation, apogee, vx) {
+  let x = deviation;
+  let y = apogee;
+  let vxCur = vx;
+  let vyCur = 0;
+  const dt = 0.02;
+  let prevX = x;
+  let prevY = y;
+  for (let step = 0; step < 150000 && y > 0; step++) {
+    const rho = WORLD.rho0 * Math.exp(-Math.max(y, 0) / WORLD.scaleHeight);
+    const speed = Math.hypot(vxCur, vyCur) || 1e-6;
+    const q = 0.5 * rho * speed * speed;
+    const dragMag = q * BALLISTIC_CDA;
+    const ax = -(vxCur / speed) * (dragMag / BALLISTIC_MASS);
+    const ay = -WORLD.g - (vyCur / speed) * (dragMag / BALLISTIC_MASS);
+    vxCur += ax * dt;
+    vyCur += ay * dt;
+    prevX = x;
+    prevY = y;
+    x += vxCur * dt;
+    y += vyCur * dt;
+  }
+  // If we stepped past ground (y <= 0), linearly interpolate impact x at y = 0
+  if (y <= 0 && y !== prevY) {
+    const t = -prevY / (y - prevY);
+    return prevX + (x - prevX) * t;
+  }
+  return x;
+}
+
+function solveBallisticVx(deviation, apogee, attackX) {
+  let vxLow = -4000;
+  let vxHigh = 4000;
+  for (let i = 0; i < 80; i++) {
+    const vx = (vxLow + vxHigh) / 2;
+    const impactX = simulateBallisticImpactX(deviation, apogee, vx);
+    if (Math.abs(impactX - attackX) < 1) return vx;
+    if (impactX < attackX) vxLow = vx;
+    else vxHigh = vx;
+  }
+  return (vxLow + vxHigh) / 2;
+}
+
+class BallisticTarget {
+  constructor(apogee, attackX, deviation, maneuverMode = 0) {
+    this.maneuverMode = maneuverMode;
+    this.trail = [];
+    this.snakePhase = 0;
+    this.snakePeriod = 10;
+    this.playerAccel = 20;
+    this.snakeAmplitude = 120;
+    this.isBallistic = true;
+    this.attackPoint = { x: attackX, y: 0 };
+    this.plasmaLevel = 0;
+
+    const vx = solveBallisticVx(deviation, apogee, attackX);
+    this.pos = { x: deviation, y: apogee };
+    this.vel = { x: vx, y: 0 };
+    this.baseSpeed = vx;
+  }
+
+  update(dt, keys = { left: false, right: false, up: false, down: false }) {
+    const rho = WORLD.rho0 * Math.exp(-Math.max(this.pos.y, 0) / WORLD.scaleHeight);
+    const speed = magnitude(this.vel) || 1e-6;
+    const q = 0.5 * rho * speed * speed;
+    const dragMag = q * BALLISTIC_CDA;
+    let ax = -(this.vel.x / speed) * (dragMag / BALLISTIC_MASS);
+    let ay = -WORLD.g - (this.vel.y / speed) * (dragMag / BALLISTIC_MASS);
+
+    if (this.maneuverMode === 0) {
+      // straight descent
+    } else if (this.maneuverMode === 1) {
+      this.snakePhase += dt;
+      const omega = (2 * Math.PI) / this.snakePeriod;
+      const speedMag = Math.max(Math.abs(this.baseSpeed), this.minSpeed);
+      const speedFactor = clamp(speedMag / 250, 0.4, 2.0);
+      const amp = this.snakeAmplitude * speedFactor;
+      this.vel.x = this.baseSpeed + amp * omega * Math.cos(omega * this.snakePhase);
+    } else {
+      if (keys.left) this.vel.x -= this.playerAccel * dt;
+      if (keys.right) this.vel.x += this.playerAccel * dt;
+    }
+
+    this.vel.x += ax * dt;
+    this.vel.y += ay * dt;
+    this.pos.x += this.vel.x * dt;
+    this.pos.y += this.vel.y * dt;
+    this.pos.y = Math.max(0, this.pos.y);
+    this.trail.push({ x: this.pos.x, y: this.pos.y, t: performance.now() });
+    if (this.trail.length > 50000) this.trail.shift();
+
+    const mach = speed / WORLD.seaLevelSpeedSound;
+    const minMach = 5;
+    const raw = clamp((mach - minMach) / (PLASMA_MACH_MAX - minMach), 0, 1);
+    const fadeRate = 3;
+    const k = clamp(dt * fadeRate, 0, 1);
+    this.plasmaLevel += (raw - this.plasmaLevel) * k;
   }
 }
 
@@ -331,6 +508,8 @@ class Missile {
     this.destroyed = false;
     this.detonated = false;
     this.trail = [];
+    this.smokeTrail = []; // { x, y, t, stage: 'primary'|'secondary' }
+    this.plasmaLevel = 0;
   }
 
   currentThrust() {
@@ -411,8 +590,20 @@ class Missile {
     this.pos.y += this.vel.y * dt;
 
     this.trail.push({ x: this.pos.x, y: this.pos.y, t: performance.now() });
-    // Permanent trail: cap at 50k points to avoid unbounded memory
     if (this.trail.length > 50000) this.trail.shift();
+
+    if (thrustMag > 0 && this.fuelRemaining > 0) {
+      const stage = this.stageTime <= this.cfg.primaryTime ? "primary" : "secondary";
+      this.smokeTrail.push({ x: this.pos.x, y: this.pos.y, t: performance.now(), stage });
+      if (this.smokeTrail.length > 300) this.smokeTrail.shift();
+    }
+
+    // Smooth plasma intensity based on Mach
+    const mach = speed / WORLD.seaLevelSpeedSound;
+    const raw = clamp((mach - PLASMA_MACH_MIN) / (PLASMA_MACH_MAX - PLASMA_MACH_MIN), 0, 1);
+    const fadeRate = 3; // 1/s
+    const k = clamp(dt * fadeRate, 0, 1);
+    this.plasmaLevel += (raw - this.plasmaLevel) * k;
   }
 }
 
@@ -423,13 +614,34 @@ class Simulation {
 
   reset() {
     const maneuverMode = Number(ui.targetManeuver?.value ?? 0);
-    this.target = new Target(
-      Number(ui.targetSpeed.value),
-      Number(ui.targetAlt.value),
-      Number(ui.targetRange.value),
-      maneuverMode
-    );
-    this.missile = new Missile(this.readMissileConfig());
+    const isBallistic = ui.targetTypeBallistic?.checked ?? false;
+    if (isBallistic) {
+      const err = validateBallisticParams();
+      if (err && ui.targetError) {
+        ui.targetError.textContent = err;
+        ui.targetError.setAttribute("aria-live", "polite");
+      }
+      if (err) {
+        this.target = new Target(-250, 10000, 30000, 0);
+        this.missile = new Missile(this.readMissileConfig());
+      } else {
+        if (ui.targetError) ui.targetError.textContent = "";
+        const apogee = Number(ui.targetApogee.value);
+        const attackX = Number(ui.targetAttackX.value);
+        const deviation = Number(ui.targetDeviation.value);
+        this.target = new BallisticTarget(apogee, attackX, deviation, maneuverMode);
+        this.missile = new Missile(this.readMissileConfig());
+      }
+    } else {
+      if (ui.targetError) ui.targetError.textContent = "";
+      this.target = new Target(
+        Number(ui.targetSpeed.value),
+        Number(ui.targetAlt.value),
+        Number(ui.targetRange.value),
+        maneuverMode
+      );
+      this.missile = new Missile(this.readMissileConfig());
+    }
     this.running = false;
     this.resultKey = "idle";
     this.lastTime = performance.now();
@@ -437,14 +649,21 @@ class Simulation {
     this.lastHudUpdate = 0;
     this.lastStatsUpdate = 0;
     this.climbPhase = true;
+    this.lastKnownTargetPos = null;
+    this.lastKnownTargetVel = null;
+    this.lastKnownTargetTime = 0;
+    this.signalLostUntil = 0;
     this.updateGuidanceControls();
   }
 
   updateGuidanceControls() {
-    if (!ui.guidanceMode) return;
     const disabled = this.running;
-    ui.guidanceMode.disabled = disabled;
-    ui.guidanceMode.style.opacity = disabled ? 0.6 : 1;
+    if (ui.guidanceMode) {
+      ui.guidanceMode.disabled = disabled;
+      ui.guidanceMode.style.opacity = disabled ? 0.6 : 1;
+    }
+    // Refresh mobile controls / swipe state when run state changes
+    updateManeuverUI();
   }
 
   readMissileConfig() {
@@ -464,6 +683,14 @@ class Simulation {
 
   launch() {
     this.reset();
+    const isBallistic = ui.targetTypeBallistic?.checked ?? false;
+    if (isBallistic) {
+      const err = validateBallisticParams();
+      if (err) {
+        if (ui.targetError) ui.targetError.textContent = err;
+        return;
+      }
+    }
     // SAM-style cold launch: go straight up first.
     this.missile.vel = { x: 0, y: 120 }; // initial upward kick
 
@@ -476,8 +703,30 @@ class Simulation {
   step(dt) {
     if (!this.running) return;
 
-    const keys = this.target.maneuverMode === 2 ? keyState : {};
+    let keys = {};
+    if (this.target.maneuverMode === 2) keys = keyState;
     this.target.update(dt, keys);
+
+    const missileMach = magnitude(this.missile.vel) / WORLD.seaLevelSpeedSound;
+    const t = this.missile.totalTime;
+    if (missileMach < 7) {
+      this.lastKnownTargetPos = { x: this.target.pos.x, y: this.target.pos.y };
+      this.lastKnownTargetVel = { x: this.target.vel.x, y: this.target.vel.y };
+      this.lastKnownTargetTime = t;
+      this.signalLostUntil = 0;
+    } else if (missileMach >= 8) {
+      // Full blackout above Mach 8: no updates, guidance uses prediction only
+    } else {
+      // 7–8 Mach: disrupted link – randomly lose signal for brief moments
+      if (t >= this.signalLostUntil) {
+        this.lastKnownTargetPos = { x: this.target.pos.x, y: this.target.pos.y };
+        this.lastKnownTargetVel = { x: this.target.vel.x, y: this.target.vel.y };
+        this.lastKnownTargetTime = t;
+        if (Math.random() < 0.018) {
+          this.signalLostUntil = t + 0.08 + Math.random() * 0.18;
+        }
+      }
+    }
 
     const guidanceAcc = this.guidance();
     this.missile.update(dt, guidanceAcc);
@@ -498,6 +747,11 @@ class Simulation {
       this.resultKey = "direct_hit";
     }
 
+    if (this.target.isBallistic && this.target.pos.y <= 0) {
+      this.running = false;
+      this.resultKey = "target_impacted";
+    }
+
     // Expanded flight envelope: allow high lofts and long shots before declaring miss.
     const xLimit = Math.max(this.target.pos.x, WORLD.width) * 5;
     const yLimit = Math.max(this.target.pos.y + 15000, WORLD.height * 2.5);
@@ -515,11 +769,25 @@ class Simulation {
   //  - "smart" N scheduling: lower N at long range to save energy, ramping up near intercept,
   //  - energy-aware lofting: only bias the trajectory upward when the target is high and the
   //    missile has sufficient speed and time, fading back to pure PN close to impact.
+  //  - Communication blackout: above Mach 8 always use prediction; 7–8 Mach intermittent disruption.
   guidance() {
     const m = this.missile;
-    const t = this.target;
-    const rel = { x: t.pos.x - m.pos.x, y: t.pos.y - m.pos.y };
-    const relVel = { x: t.vel.x - m.vel.x, y: t.vel.y - m.vel.y };
+    const missileMach = magnitude(m.vel) / WORLD.seaLevelSpeedSound;
+    let tPos = this.target.pos;
+    let tVel = this.target.vel;
+    const usePrediction =
+      missileMach >= 8 ||
+      (missileMach >= 7 && (m.totalTime < this.signalLostUntil || !this.lastKnownTargetPos || this.lastKnownTargetVel == null));
+    if (usePrediction && this.lastKnownTargetPos && this.lastKnownTargetVel != null) {
+      const dtPred = m.totalTime - this.lastKnownTargetTime;
+      tPos = {
+        x: this.lastKnownTargetPos.x + this.lastKnownTargetVel.x * dtPred,
+        y: this.lastKnownTargetPos.y + this.lastKnownTargetVel.y * dtPred,
+      };
+      tVel = { ...this.lastKnownTargetVel };
+    }
+    const rel = { x: tPos.x - m.pos.x, y: tPos.y - m.pos.y };
+    const relVel = { x: tVel.x - m.vel.x, y: tVel.y - m.vel.y };
 
     const r = magnitude(rel);
     const closing = -(rel.x * relVel.x + rel.y * relVel.y) / Math.max(r, 1e-6);
@@ -568,7 +836,7 @@ class Simulation {
     // Close to intercept we fade loft to zero so guidance becomes pure PN.
     const loftDeg = m.cfg.loftBiasDeg;
     if (loftDeg !== 0 && closingMag > 1 && Math.abs(losRate) > 1e-6) {
-      const altDiff = t.pos.y - m.pos.y;
+      const altDiff = tPos.y - m.pos.y;
       if (altDiff > 1000) {
         const speed = magnitude(m.vel);
         const mach = speed / WORLD.seaLevelSpeedSound;
@@ -623,6 +891,8 @@ class Simulation {
     this.lastHudUpdate = now;
     const speed = magnitude(this.missile.vel);
     const mach = speed / WORLD.seaLevelSpeedSound;
+    const targetSpeed = magnitude(this.target.vel);
+    const targetMach = targetSpeed / WORLD.seaLevelSpeedSound;
     const eta = closing > 1 ? range / closing : Infinity;
     const mode = ui.guidanceMode?.value ?? "constant";
     const guidanceLabel = mode === "smart" ? t("guidance_smart") : t("guidance_constant");
@@ -630,6 +900,7 @@ class Simulation {
       `${t("hud_range")}: ${range.toFixed(0)} m`,
       `${t("hud_closure")}: ${closing.toFixed(1)} m/s`,
       `${t("hud_missile_speed")}: ${speed.toFixed(1)} m/s (Mach ${mach.toFixed(2)})`,
+      `${t("stats_target_speed")}: ${targetSpeed.toFixed(1)} m/s (Mach ${targetMach.toFixed(2)})`,
       `${t("hud_cmd_accel")}: ${accelGs.toFixed(1)} g`,
       `${t("hud_guidance")}: ${guidanceLabel} (N=${navNUsed.toFixed(2)})`,
       `${t("hud_eta")}: ${isFinite(eta) ? eta.toFixed(1) + " s" : "—"}`,
@@ -638,7 +909,7 @@ class Simulation {
     // Also update stats panel (throttled separately for stability)
     if (now - this.lastStatsUpdate > 100) {
       this.lastStatsUpdate = now;
-      statsEl.innerHTML = [
+      const statsLines = [
         `${t("stats_mach")}: ${mach.toFixed(2)}`,
         `${t("stats_missile_pos")}: ${this.missile.pos.x.toFixed(0)} m, ${this.missile.pos.y.toFixed(0)} m`,
         `${t("stats_stage_time")}: ${this.missile.stageTime.toFixed(2)} s`,
@@ -647,7 +918,8 @@ class Simulation {
         `${t("stats_missile_mass")}: ${this.missile.mass.toFixed(1)} kg`,
         `${t("stats_cmd_accel")}: ${accelGs.toFixed(1)} g`,
         `${t("stats_target_vel")}: ${this.target.vel.x.toFixed(1)}, ${this.target.vel.y.toFixed(1)} m/s`,
-      ]
+      ];
+      statsEl.innerHTML = statsLines
         .map((line) => `<div>${line}</div>`)
         .join("");
     }
@@ -656,6 +928,7 @@ class Simulation {
   refreshHudLanguage() {
     this.lastHudUpdate = 0;
     this.lastStatsUpdate = 0;
+    if (ui.targetError) ui.targetError.textContent = "";
   }
 }
 
@@ -666,7 +939,7 @@ const viewState = {
   mode: "follow", // "follow" | "free"
   center: { x: 0, y: 0 },
   scale: 0.08,
-  minScale: 0.002,
+  minScale: 0.0002,
   maxScale: 2,
 };
 
@@ -688,7 +961,7 @@ function computeView() {
     };
   }
 
-  // Follow mode: center on missile, frame missile and target.
+  // Follow mode: center between missile and target (biased toward missile), frame both.
   const dx = Math.abs(target.x - missile.x);
   const dy = Math.abs(target.y - missile.y);
   const padding = 500; // meters
@@ -712,15 +985,18 @@ function computeView() {
 
   const scale = canvas.width / viewWidth;
 
+  const centerX = missile.x * 0.7 + target.x * 0.3;
+  const centerY = missile.y * 0.7 + target.y * 0.3;
+
   const view = {
     scale,
-    origin: { x: missile.x - viewWidth / 2, y: missile.y - viewHeight / 2 },
+    origin: { x: centerX - viewWidth / 2, y: centerY - viewHeight / 2 },
     width: viewWidth,
     height: viewHeight,
   };
   // While following, track current view so that switching to free camera keeps the same framing.
   if (viewState.mode === "follow") {
-    viewState.center = { x: missile.x, y: missile.y };
+    viewState.center = { x: centerX, y: centerY };
     viewState.scale = scale;
   }
 
@@ -732,6 +1008,58 @@ function worldToCanvas(p, view) {
     x: (p.x - view.origin.x) * view.scale,
     y: canvas.height - (p.y - view.origin.y) * view.scale,
   };
+}
+
+const PLASMA_MACH_MIN = 5;
+const PLASMA_MACH_MAX = 20;
+
+function drawPlasmaEffect(worldPos, vel, view, level) {
+  const speed = magnitude(vel);
+  const factor = clamp(level, 0, 1);
+  if (factor <= 0.01) return;
+  const alpha = 0.25 + 0.6 * factor;
+  const baseLen = 50 * VIS_SCALE;
+  const len = baseLen + 100 * factor * VIS_SCALE;   // comet length
+  const baseRadius = 14 * VIS_SCALE;
+  const radius = baseRadius + 24 * factor * VIS_SCALE; // make it wider than missile
+  const c = worldToCanvas(worldPos, view);
+  const dir = speed > 1e-6 ? normalize(vel) : { x: 1, y: 0 };
+  const angle = Math.atan2(dir.y, dir.x);
+  ctx.save();
+  ctx.translate(c.x, c.y);
+  ctx.rotate(-angle);
+
+  // Main comet body: streamlined teardrop slightly ahead of the missile nose.
+  const noseX = 28 * VIS_SCALE; // shift plasma forward
+  const tailX = noseX - len;
+  const bodyGrad = ctx.createLinearGradient(tailX, 0, noseX, 0);
+  bodyGrad.addColorStop(0, "rgba(80,50,180,0)");
+  bodyGrad.addColorStop(0.3, `rgba(120,80,220,${alpha * 0.35})`);
+  bodyGrad.addColorStop(0.6, `rgba(200,120,200,${alpha * 0.55})`);
+  bodyGrad.addColorStop(0.9, `rgba(255,140,60,${alpha * 0.9})`);
+  ctx.fillStyle = bodyGrad;
+  ctx.beginPath();
+  // Nose at (noseX,0), tail stretching backward.
+  ctx.moveTo(noseX, 0);
+  ctx.quadraticCurveTo(tailX + (len * 0.35), radius * 0.9, tailX, 0);
+  ctx.quadraticCurveTo(tailX + (len * 0.35), -radius * 0.9, noseX, 0);
+  ctx.fill();
+
+  // Bright glow at the front tip, matching the cone.
+  const glowLen = len * 0.8;
+  const glowTailX = noseX - glowLen;
+  const glowGrad = ctx.createLinearGradient(glowTailX, 0, noseX, 0);
+  glowGrad.addColorStop(0, "rgba(255,180,120,0)");
+  glowGrad.addColorStop(0.4, `rgba(255,200,150,${alpha * 0.6})`);
+  glowGrad.addColorStop(1, `rgba(255,240,220,${alpha})`);
+  ctx.fillStyle = glowGrad;
+  ctx.beginPath();
+  ctx.moveTo(noseX, 0);
+  ctx.quadraticCurveTo(glowTailX + glowLen * 0.4, radius * 0.7, glowTailX, 0);
+  ctx.quadraticCurveTo(glowTailX + glowLen * 0.4, -radius * 0.7, noseX, 0);
+  ctx.fill();
+
+  ctx.restore();
 }
 
 function drawTrail(trail, color, view) {
@@ -747,34 +1075,79 @@ function drawTrail(trail, color, view) {
   ctx.stroke();
 }
 
+function drawSmokeTrail(m, view) {
+  if (!m.smokeTrail || m.smokeTrail.length < 2) return;
+  const now = performance.now();
+  const maxAge = 7000;
+  for (let i = 0; i < m.smokeTrail.length; i++) {
+    const pt = m.smokeTrail[i];
+    const age = now - pt.t;
+    if (age > maxAge) continue;
+    const alpha = 1 - age / maxAge;
+    const c = worldToCanvas({ x: pt.x, y: pt.y }, view);
+    const r = (pt.stage === "primary" ? 6 : 4) * VIS_SCALE * (0.5 + 0.5 * alpha);
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, r, 0, Math.PI * 2);
+    if (pt.stage === "primary") {
+      ctx.fillStyle = `rgba(255,255,255,${0.35 * alpha})`;
+    } else {
+      ctx.fillStyle = `rgba(40,40,45,${0.1 * alpha})`;
+    }
+    ctx.fill();
+  }
+}
+
 function drawMissile(m, view) {
   const p = worldToCanvas(m.pos, view);
-  const dir = normalize(m.vel.x || m.vel.y ? m.vel : { x: 1, y: 0 });
+  const hasVel = m.vel.x !== 0 || m.vel.y !== 0;
+  const dir = normalize(hasVel ? m.vel : { x: 0, y: 1 });
   const angle = Math.atan2(dir.y, dir.x);
+
+  if (m.smokeTrail && m.smokeTrail.length > 0) drawSmokeTrail(m, view);
 
   ctx.save();
   ctx.translate(p.x, p.y);
   ctx.rotate(-angle);
   ctx.fillStyle = "#9dd1ff";
   ctx.strokeStyle = "#c6e3ff";
-  ctx.lineWidth = 2 * VIS_SCALE;
+  ctx.lineWidth = 3 * VIS_SCALE;
   ctx.beginPath();
-  ctx.moveTo(14 * VIS_SCALE, 0);
-  ctx.lineTo(-12 * VIS_SCALE, 6 * VIS_SCALE);
-  ctx.lineTo(-16 * VIS_SCALE, 0);
-  ctx.lineTo(-12 * VIS_SCALE, -6 * VIS_SCALE);
+  ctx.moveTo(20 * VIS_SCALE, 0);
+  ctx.lineTo(-16 * VIS_SCALE, 8 * VIS_SCALE);
+  ctx.lineTo(-20 * VIS_SCALE, 0);
+  ctx.lineTo(-16 * VIS_SCALE, -8 * VIS_SCALE);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
 
-  const gradient = ctx.createRadialGradient(-16 * VIS_SCALE, 0, 0, -16 * VIS_SCALE, 0, 14 * VIS_SCALE);
-  gradient.addColorStop(0, "rgba(255,180,80,0.9)");
-  gradient.addColorStop(1, "rgba(255,180,80,0)");
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.ellipse(-20 * VIS_SCALE, 0, 16 * VIS_SCALE, 8 * VIS_SCALE, 0, 0, Math.PI * 2);
-  ctx.fill();
+  const thrustMag = m.currentThrust();
+  const hasFuel = m.fuelRemaining > 0;
+  if (hasFuel && thrustMag > 0) {
+    const isPrimary = m.stageTime < m.cfg.primaryTime;
+    const baseX = -16 * VIS_SCALE;
+    const len = (isPrimary ? 28 : 18) * VIS_SCALE;
+    const w = (isPrimary ? 14 : 10) * VIS_SCALE;
+    const gradient = ctx.createRadialGradient(baseX - len * 0.3, 0, 0, baseX, 0, len);
+    if (isPrimary) {
+      gradient.addColorStop(0, "rgba(255,255,255,0.95)");
+      gradient.addColorStop(0.35, "rgba(255,250,200,0.7)");
+      gradient.addColorStop(0.7, "rgba(255,200,100,0.3)");
+      gradient.addColorStop(1, "rgba(255,180,80,0)");
+    } else {
+      gradient.addColorStop(0, "rgba(255,160,60,0.85)");
+      gradient.addColorStop(0.5, "rgba(220,120,40,0.4)");
+      gradient.addColorStop(1, "rgba(200,100,30,0)");
+    }
+    ctx.fillStyle = gradient;
+    ctx.beginPath();
+    ctx.ellipse(baseX - len * 0.5, 0, len, w, 0, 0, Math.PI * 2);
+    ctx.fill();
+  }
+
   ctx.restore();
+  if (m.plasmaLevel > 0.01) {
+    drawPlasmaEffect(m.pos, m.vel, view, m.plasmaLevel);
+  }
 }
 
 function drawTarget(t, view) {
@@ -787,11 +1160,11 @@ function drawTarget(t, view) {
   ctx.rotate(-angle);
   ctx.fillStyle = "#7bd88f";
   ctx.strokeStyle = "#c8f9d1";
-  ctx.lineWidth = 2 * VIS_SCALE;
+  ctx.lineWidth = 3 * VIS_SCALE;
   ctx.beginPath();
-  ctx.moveTo(12 * VIS_SCALE, 0);
-  ctx.lineTo(-12 * VIS_SCALE, 5 * VIS_SCALE);
-  ctx.lineTo(-12 * VIS_SCALE, -5 * VIS_SCALE);
+  ctx.moveTo(18 * VIS_SCALE, 0);
+  ctx.lineTo(-14 * VIS_SCALE, 7 * VIS_SCALE);
+  ctx.lineTo(-14 * VIS_SCALE, -7 * VIS_SCALE);
   ctx.closePath();
   ctx.fill();
   ctx.stroke();
@@ -814,7 +1187,13 @@ function drawScaleBar(view) {
   const paddingX = 40;
   const paddingY = 50 * VIS_SCALE;
   const targetBarPx = 200 * VIS_SCALE;
-  const niceMeters = [10, 25, 50, 100, 250, 500, 1000, 2500, 5000, 10000, 25000, 50000];
+  const niceMeters = [
+    10, 25, 50, 100, 250, 500,
+    1000, 2500, 5000, 10000,
+    25000, 50000, 100000,
+    250000, 500000, 1000000,
+    2500000, 5000000, 10000000,
+  ];
   let best = niceMeters[0];
   let bestDiff = Infinity;
   for (const m of niceMeters) {
@@ -859,7 +1238,13 @@ function render() {
 
   // Grid (dynamic spacing based on zoom)
   const targetPx = 90;
-  const candidates = [50, 100, 200, 500, 1000, 2000, 5000];
+  const candidates = [
+    50, 100, 200, 500,
+    1000, 2000, 5000,
+    10000, 20000, 50000,
+    100000, 200000, 500000,
+    1000000, 2000000, 5000000,
+  ];
   let spacing = candidates[0];
   let bestDiff = Infinity;
   for (const s of candidates) {
@@ -901,9 +1286,24 @@ function render() {
   ctx.lineTo(groundRight.x, groundRight.y);
   ctx.stroke();
 
+  if (sim.target.isBallistic && sim.target.attackPoint) {
+    const c = worldToCanvas(sim.target.attackPoint, view);
+    ctx.save();
+    ctx.fillStyle = "#e53935";
+    ctx.beginPath();
+    ctx.arc(c.x, c.y, 8 * VIS_SCALE, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.strokeStyle = "rgba(255,255,255,0.6)";
+    ctx.lineWidth = 2;
+    ctx.stroke();
+    ctx.restore();
+  }
   drawTrail(sim.target.trail, "rgba(123,216,143,0.55)", view);
   drawTrail(sim.missile.trail, "rgba(90,200,250,0.65)", view);
   drawTarget(sim.target, view);
+  if (sim.target.plasmaLevel > 0.01) {
+    drawPlasmaEffect(sim.target.pos, sim.target.vel, view, sim.target.plasmaLevel);
+  }
   drawMissile(sim.missile, view);
 
   if (sim.missile.detonated) {
@@ -921,18 +1321,32 @@ function render() {
   }
 }
 
+// Simulation at 120 FPS so integration is fine enough to match previous top speed (~3+ Mach); rendering stays at display refresh rate.
+const SIM_FPS = 120;
+const SIM_DT = 1 / SIM_FPS;
+const MAX_SIM_STEPS_PER_FRAME = 30;
+let simAccumulator = 0;
+
+function getSimSpeedFactor() {
+  const checked = document.querySelector('input[name="simSpeedOpt"]:checked');
+  const val = checked ? Number(checked.value) : 1;
+  return Number.isFinite(val) && val > 0 ? val : 1;
+}
+
 function loop() {
   const now = performance.now();
-  const dt = clamp((now - sim.lastTime) / 1000, 0, 0.05);
+  const dt = clamp((now - sim.lastTime) / 1000, 0, 0.1);
   sim.lastTime = now;
 
-  // Fixed-step for stability
-  const stepSize = 0.02;
-  let accumulator = dt;
-  while (accumulator > 0) {
-    const step = Math.min(stepSize, accumulator);
-    sim.step(step);
-    accumulator -= step;
+  const speedFactor = getSimSpeedFactor();
+  simAccumulator += dt * speedFactor;
+  const maxAccum = SIM_DT * 3;
+  if (simAccumulator > maxAccum) simAccumulator = maxAccum;
+  let steps = 0;
+  while (simAccumulator >= SIM_DT && steps < MAX_SIM_STEPS_PER_FRAME) {
+    sim.step(SIM_DT);
+    simAccumulator -= SIM_DT;
+    steps++;
   }
 
   render();
@@ -941,10 +1355,12 @@ function loop() {
 
 // UI bindings
 ui.launchBtn.addEventListener("click", () => {
+  simAccumulator = 0;
   sim.launch();
   viewState.mode = "follow";
 });
 ui.resetBtn.addEventListener("click", () => {
+  simAccumulator = 0;
   sim.reset();
   viewState.mode = "follow";
 });
@@ -1035,8 +1451,9 @@ canvas.addEventListener("touchmove", (e) => {
     const dy = y - lastPanY;
     lastPanX = x;
     lastPanY = y;
-    viewState.center.x -= dx / viewState.scale;
-    viewState.center.y += dy / viewState.scale;
+    const panBoost = IS_MOBILE ? 1.8 : 1;
+    viewState.center.x -= (dx / viewState.scale) * panBoost;
+    viewState.center.y += (dy / viewState.scale) * panBoost;
   } else if (touchMode === "pinch" && e.touches.length === 2) {
     const [t1, t2] = e.touches;
     const dx = t2.clientX - t1.clientX;
@@ -1058,9 +1475,26 @@ function updateManeuverUI() {
   const idx = Number(ui.targetManeuver?.value ?? 0);
   if (ui.targetManeuverLabel) ui.targetManeuverLabel.textContent = t(MANEUVER_KEYS[idx]);
   if (ui.targetManeuverHint) ui.targetManeuverHint.textContent = t(HINT_KEYS[idx]);
+
+  // Mobile-only on-screen controls visibility
+  if (IS_MOBILE && ui.mobileControls) {
+    const isPlayer = idx === 2;
+    ui.mobileControls.classList.toggle("hidden", !isPlayer);
+
+    // Only block swipe when player-controlled target is active AND sim is running
+    const blockSwipe = IS_MOBILE && isPlayer && sim && sim.running;
+    document.body.classList.toggle("mobile-player-active", !!blockSwipe);
+  }
 }
+
 ui.targetManeuver?.addEventListener("input", updateManeuverUI);
 updateManeuverUI();
+
+function onTargetTypeChange() {
+  updateTargetTypeUI();
+}
+ui.targetTypePlane?.addEventListener("change", onTargetTypeChange);
+ui.targetTypeBallistic?.addEventListener("change", onTargetTypeChange);
 
 document.querySelectorAll(".lang-btn").forEach((btn) => {
   btn.addEventListener("click", () => {
@@ -1072,6 +1506,42 @@ document.querySelectorAll(".lang-btn").forEach((btn) => {
   });
 });
 applyTranslations();
+
+// Mobile on-screen arrows map to the same keyState as keyboard arrows.
+if (IS_MOBILE && ui.mobileLeft && ui.mobileRight) {
+  ui.mobileLeft.addEventListener("touchstart", (e) => {
+    keyState.left = true;
+    e.preventDefault();
+  }, { passive: false });
+  ui.mobileLeft.addEventListener("touchend", () => {
+    keyState.left = false;
+  });
+  ui.mobileRight.addEventListener("touchstart", (e) => {
+    keyState.right = true;
+    e.preventDefault();
+  }, { passive: false });
+  ui.mobileRight.addEventListener("touchend", () => {
+    keyState.right = false;
+  });
+  if (ui.mobileUp) {
+    ui.mobileUp.addEventListener("touchstart", (e) => {
+      keyState.up = true;
+      e.preventDefault();
+    }, { passive: false });
+    ui.mobileUp.addEventListener("touchend", () => {
+      keyState.up = false;
+    });
+  }
+  if (ui.mobileDown) {
+    ui.mobileDown.addEventListener("touchstart", (e) => {
+      keyState.down = true;
+      e.preventDefault();
+    }, { passive: false });
+    ui.mobileDown.addEventListener("touchend", () => {
+      keyState.down = false;
+    });
+  }
+}
 
 // Arrow keys for player-controlled target (prevent scroll)
 function onKeyDown(e) {
@@ -1092,5 +1562,4 @@ window.addEventListener("keyup", onKeyUp);
 // Start idle render
 sim.updateHud(0, 0, 0);
 loop();
-
 
